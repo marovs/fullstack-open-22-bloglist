@@ -122,3 +122,26 @@ describe("author of most blogs", () => {
 		})
 	})
 })
+
+describe("author of most likes", () => {
+	test("when empty list is undefined", () => {
+		const result = listHelper.mostLikes([])
+		expect(result).toBeUndefined()
+	})
+
+	test("when list contains one element is author of element", () => {
+		const result = listHelper.mostLikes([blogs[0]])
+		expect(result).toEqual({
+			author: "Michael Chan",
+			likes: 7
+		})
+	})
+
+	test("when list of more elements is author with most likes", () => {
+		const result = listHelper.mostLikes(blogs)
+		expect(result).toEqual({
+			author: "Edsger W. Dijkstra",
+			likes: 17
+		})
+	})
+})
