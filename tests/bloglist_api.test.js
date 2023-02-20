@@ -97,6 +97,40 @@ describe("when calling http post on /api/blogs", () => {
 	})
 })
 
+describe("when calling http delete on /api/blogs/:id", () => {
+	test("successfully removes blog", async () => {
+		const initialBlogs = await helper.blogsInDb()
+		const blogToDelete = initialBlogs[0]
+
+		await api.delete(`/api/blogs/${blogToDelete.id}`).expect(204)
+
+		const blogsAfter = await helper.blogsInDb()
+
+		expect(blogsAfter).toHaveLength(helper.initialBlogs.length - 1)
+
+		const titles = blogsAfter.map(b => b.title)
+
+		expect(titles).not.toContain(blogToDelete.title)
+	})
+})
+
+describe("when calling http put on /api/blogs/:id", () => {
+	test("successfully updates blog", async () => {
+		const initialBlogs = await helper.blogsInDb()
+		const blogToUpdate = initialBlogs[0]
+
+		const updatedBlog = {...blogToUpdate, likes: 42}
+
+		await api.put(`/api/blogs/${blogToUpdate.id}`).send(updatedBlog)
+			.expect(200)
+
+		const response = await helper.blogsInDb()
+		const responseBlog = response.find(blog => blog.id === blogToUpdate.id)
+		expect(response).toHaveLength(helper.initialBlogs.length)
+		expect(responseBlog.likes).toEqual(42)
+	})
+})
+
 
 afterAll(async () => {
 	await mongoose.connection.close()
