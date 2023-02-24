@@ -2,15 +2,25 @@ const mongoose = require("mongoose").default
 const supertest = require("supertest")
 const helper = require("./test_helper")
 const Blog = require("../models/blog")
+const User = require("../models/user")
 const app = require("../app")
 const api = supertest(app)
 
 beforeEach(async () => {
 	await Blog.deleteMany({})
+	await User.deleteMany({})
 
 	const blogObjects = helper.initialBlogs.map(blog => new Blog(blog))
 	const promiseArray = blogObjects.map(blog => blog.save())
 	await Promise.all(promiseArray)
+
+	const newUser = {
+		username: "admin",
+		name: "Admin User",
+		password: "admin"
+	}
+
+	await api.post("/api/users").send(newUser)
 })
 
 describe("when calling http get on /api/blogs,", () => {
@@ -45,8 +55,11 @@ describe("when calling http post on /api/blogs", () => {
 			likes: 0,
 		}
 
+		const tokenResponse = await api.post("/api/login").send({username: "admin", password: "admin"})
+
 		await api.post("/api/blogs")
 			.send(newBlog)
+			.set("Authorization", `Bearer ${tokenResponse.body.token}`)
 			.expect(201)
 			.expect("Content-Type", /application\/json/)
 
@@ -67,7 +80,11 @@ describe("when calling http post on /api/blogs", () => {
 			url: "https://place.com",
 		}
 
-		const response = await api.post("/api/blogs").send(newBlog)
+		const tokenResponse = await api.post("/api/login").send({username: "admin", password: "admin"})
+
+		const response = await api.post("/api/blogs")
+			.send(newBlog)
+			.set("Authorization", `Bearer ${tokenResponse.body.token}`)
 
 		expect(response.body.likes).toEqual(0)
 	})
@@ -79,8 +96,11 @@ describe("when calling http post on /api/blogs", () => {
 			likes: 0,
 		}
 
+		const tokenResponse = await api.post("/api/login").send({username: "admin", password: "admin"})
+
 		await api.post("/api/blogs")
 			.send(newBlog)
+			.set("Authorization", `Bearer ${tokenResponse.body.token}`)
 			.expect(400)
 	})
 
@@ -91,22 +111,56 @@ describe("when calling http post on /api/blogs", () => {
 			likes: 0,
 		}
 
+		const tokenResponse = await api.post("/api/login").send({username: "admin", password: "admin"})
+
 		await api.post("/api/blogs")
 			.send(newBlog)
+			.set("Authorization", `Bearer ${tokenResponse.body.token}`)
 			.expect(400)
+	})
+
+	test("if missing token responds with 401", async () => {
+		const newBlog = {
+			title: "New Blog",
+			author: "Person",
+			url: "https://place.com",
+			likes: 0,
+		}
+
+		await api.post("/api/blogs")
+			.send(newBlog)
+			.expect(401)
 	})
 })
 
 describe("when calling http delete on /api/blogs/:id", () => {
 	test("successfully removes blog", async () => {
-		const initialBlogs = await helper.blogsInDb()
-		const blogToDelete = initialBlogs[0]
+		const user = await User.findOne({})
 
-		await api.delete(`/api/blogs/${blogToDelete.id}`).expect(204)
+		const newBlog = {
+			title: "New Blog",
+			author: "Person",
+			url: "https://place.com",
+			likes: 0,
+			user: user.id
+		}
+
+		const tokenResponse = await api.post("/api/login").send({username: "admin", password: "admin"})
+
+		await api.post("/api/blogs")
+			.send(newBlog)
+			.set("Authorization", `Bearer ${tokenResponse.body.token}`)
+		const length = helper.initialBlogs.length + 1
+
+		const blogToDelete = await Blog.findOne({title: "New Blog"})
+
+		await api.delete(`/api/blogs/${blogToDelete.id}`)
+			.set("Authorization", `Bearer ${tokenResponse.body.token}`)
+			.expect(204)
 
 		const blogsAfter = await helper.blogsInDb()
 
-		expect(blogsAfter).toHaveLength(helper.initialBlogs.length - 1)
+		expect(blogsAfter).toHaveLength(length - 1)
 
 		const titles = blogsAfter.map(b => b.title)
 
