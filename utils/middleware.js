@@ -20,6 +20,10 @@ const errorHandler = (error, request, response, next) => {
 		return response.status(404).json({error: error.message})
 	case "ValidationError":
 		return response.status(400).json({error: error.message})
+	case "JsonWebTokenError":
+		return response.status(400).json({error: error.message})
+	case "TokenExpiredError":
+		return response.status(401).json({error: "token expired"})
 	}
 
 	logger.error(error.message)
