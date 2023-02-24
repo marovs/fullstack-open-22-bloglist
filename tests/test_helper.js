@@ -1,4 +1,8 @@
 const Blog = require("../models/blog")
+const User = require("../models/user")
+const app = require("../app")
+const supertest = require("supertest")
+const api = supertest(app)
 
 const initialBlogs = [
 	{
@@ -64,6 +68,25 @@ const blogsInDb = async () => {
 	return blogs.map(blog => blog.toJSON())
 }
 
+const usersInDb = async () => {
+	const users = await User.find({})
+	return users.map(u => u.toJSON())
+}
+
+const addUserToDb = async (user, toContain) => {
+	const usersAtStart = await usersInDb()
+
+	const response = await api
+		.post("/api/users")
+		.send(user)
+		.expect(400)
+
+	const usersAtEnd = await usersInDb()
+	expect(usersAtEnd).toHaveLength(usersAtStart.length)
+
+	expect(response.error.text).toContain(toContain)
+}
+
 module.exports = {
-	initialBlogs: initialBlogs, nonExistingId, blogsInDb
+	initialBlogs: initialBlogs, nonExistingId, blogsInDb, usersInDb, addUserToDb
 }
